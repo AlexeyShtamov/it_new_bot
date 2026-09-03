@@ -3,5 +3,10 @@
     "hash": "21464c9f4644fe19315007b288680c19669a10d4ec3e4e84d50f24a3eb3c950d",
     "title": "Nvidia to Acquire Hugging Face",
     "date": "2026-09-03T16:53:16.190445+00:00"
+  },
+  {
+    "hash": "bce854176ca38d0e11941970e72856160913515fced716779b0b4dc1ecd399cd",
+    "title": "Vert.x Event-Loop vs Virtual Threads: Jactl Suspend/Resume Benchmark",
+    "date": "2026-09-03T17:08:26.601892+00:00"
   }
 ]
