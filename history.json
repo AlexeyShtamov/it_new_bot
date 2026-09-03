@@ -8,5 +8,10 @@
     "hash": "bce854176ca38d0e11941970e72856160913515fced716779b0b4dc1ecd399cd",
     "title": "Vert.x Event-Loop vs Virtual Threads: Jactl Suspend/Resume Benchmark",
     "date": "2026-09-03T17:08:26.601892+00:00"
+  },
+  {
+    "hash": "7f3840158c281d685c466bb9c329115f04da85d5730363c75ca0c18cba66514c",
+    "title": "Presentation: Instrumentation at Scale: Having Your Performance Cake and Eating It Too",
+    "date": "2026-09-03T17:10:46.435955+00:00"
   }
 ]
