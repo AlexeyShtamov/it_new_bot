@@ -227,47 +227,73 @@ def to_telegram_markdown(text: str) -> str:
     return text.replace("**", "*")
 
 
+def _send_message(base: str, text: str) -> requests.Response:
+    resp = requests.post(
+        f"{base}/sendMessage",
+        data={"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "Markdown"},
+        timeout=30,
+    )
+    if resp.ok:
+        return resp
+    print(f"[warn] sendMessage с разметкой не сработал ({resp.text}), пробую без разметки")
+    resp = requests.post(
+        f"{base}/sendMessage",
+        data={"chat_id": TELEGRAM_CHAT_ID, "text": text},
+        timeout=30,
+    )
+    return resp
+
+
 def publish(text: str, image_url: str | None):
     base = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
     text = to_telegram_markdown(text)
 
-    if image_url:
-        caption = text[:1024]  # лимит Telegram на подпись к фото
-        resp = requests.post(
-            f"{base}/sendPhoto",
-            data={
-                "chat_id": TELEGRAM_CHAT_ID,
-                "photo": image_url,
-                "caption": caption,
-                "parse_mode": "Markdown",
-            },
-            timeout=30,
-        )
-        if resp.ok:
-            return
-        print(f"[warn] sendPhoto с разметкой не сработал ({resp.text}), пробую без разметки")
-        resp = requests.post(
-            f"{base}/sendPhoto",
-            data={"chat_id": TELEGRAM_CHAT_ID, "photo": image_url, "caption": caption},
-            timeout=30,
-        )
-        if resp.ok:
-            return
-        print(f"[warn] sendPhoto всё равно не сработал ({resp.text}), пробую просто текст")
+    if len(text) > 4096:
+        # Telegram режет sendMessage на 4096 символов — на всякий случай
+        # рвём по последнему переносу строки перед лимитом, а не посередине слова.
+        cut = text.rfind("\n", 0, 4096)
+        cut = cut if cut > 0 else 4096
+        print(f"[warn] пост длиннее 4096 символов ({len(text)}), обрезаю по последнему переносу строки")
+        text = text[:cut]
 
-    resp = requests.post(
-        f"{base}/sendMessage",
-        data={"chat_id": TELEGRAM_CHAT_ID, "text": text[:4096], "parse_mode": "Markdown"},
-        timeout=30,
-    )
-    if resp.ok:
-        return
-    print(f"[warn] sendMessage с разметкой не сработал ({resp.text}), пробую без разметки")
-    resp = requests.post(
-        f"{base}/sendMessage",
-        data={"chat_id": TELEGRAM_CHAT_ID, "text": text[:4096]},
-        timeout=30,
-    )
+    caption_fits = image_url and len(text) <= 1024
+
+    if image_url:
+        if caption_fits:
+            resp = requests.post(
+                f"{base}/sendPhoto",
+                data={
+                    "chat_id": TELEGRAM_CHAT_ID,
+                    "photo": image_url,
+                    "caption": text,
+                    "parse_mode": "Markdown",
+                },
+                timeout=30,
+            )
+            if resp.ok:
+                return
+            print(f"[warn] sendPhoto с разметкой не сработал ({resp.text}), пробую без разметки")
+            resp = requests.post(
+                f"{base}/sendPhoto",
+                data={"chat_id": TELEGRAM_CHAT_ID, "photo": image_url, "caption": text},
+                timeout=30,
+            )
+            if resp.ok:
+                return
+            print(f"[warn] sendPhoto всё равно не сработал ({resp.text}), пробую просто текст")
+        else:
+            # Текст не влезает в подпись к фото (лимит 1024) — отправляем
+            # картинку без подписи и следом полный текст отдельным сообщением,
+            # чтобы пост не обрубался на середине предложения.
+            resp = requests.post(
+                f"{base}/sendPhoto",
+                data={"chat_id": TELEGRAM_CHAT_ID, "photo": image_url},
+                timeout=30,
+            )
+            if not resp.ok:
+                print(f"[warn] sendPhoto не сработал ({resp.text}), отправляю только текст")
+
+    resp = _send_message(base, text)
     resp.raise_for_status()
 
 
