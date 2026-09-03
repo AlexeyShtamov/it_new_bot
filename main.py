@@ -1,15 +1,15 @@
 """
-Автономный постер IT-новостей в Telegram.
+Автономный образовательный Telegram-канал по backend/Java/Go/архитектуре/AI.
 
 Пайплайн одного запуска:
-1. Собрать свежие записи из RSS-фидов (feeds.py)
-2. Отсеять то, что уже публиковалось (history.json)
-3. Отдать Claude список кандидатов -> модель выбирает 1 самую значимую новость
-4. Claude пишет черновик поста
-5. Claude же перепроверяет и переписывает черновик (убирает "нейро-слоп")
-6. Найти картинку по теме через Unsplash
-7. Опубликовать в Telegram (фото + подпись, либо просто текст, если фото не нашлось)
-8. Записать хэш новости в history.json, чтобы не повторяться
+1. Выбрать тему, которая ещё не была раскрыта (topics.py + history.json)
+2. Написать по ней экспертный пост (в стиле Shtamov.dev)
+3. Само-проверка: сверить пост со структурой и форматом
+4. Придумать короткий англоязычный поисковый запрос под смысл поста
+   и подобрать по нему картинку через Unsplash
+5. Опубликовать в Telegram (фото + подпись, либо просто текст, если фото
+   не нашлось)
+6. Запомнить тему в history.json, чтобы не повторяться
 
 Все настройки — через переменные окружения (см. README.md).
 """
@@ -17,15 +17,14 @@
 import hashlib
 import json
 import os
+import random
 import sys
-import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import feedparser
 import requests
 
-from feeds import FEEDS
+from topics import TOPICS
 
 # ---------- Настройки ----------
 
@@ -40,32 +39,30 @@ MODEL = os.environ.get("CLAUDE_MODEL") or "claude-sonnet-5"
 # например https://api.apibazaar.shop/v1. Такие прокси обычно эмулируют
 # OpenAI-совместимый Chat Completions API, а не нативный Anthropic API,
 # поэтому запрос собирается вручную (см. call_llm ниже), а не через
-# официальный anthropic SDK — SDK и такой прокси говорят на разных "языках".
+# официальный anthropic SDK.
 # Если переменная не задана — используется официальный Anthropic API напрямую.
 ANTHROPIC_BASE_URL = (os.environ.get("ANTHROPIC_BASE_URL") or "https://api.anthropic.com").rstrip("/")
 USING_PROXY = bool(os.environ.get("ANTHROPIC_BASE_URL"))
 
-LOOKBACK_HOURS = int(os.environ.get("LOOKBACK_HOURS", "26"))
-POST_LANGUAGE = os.environ.get("POST_LANGUAGE", "ru")  # ru или en
-# Тематический фильтр для отбора новости — свободный текст, который вставляется
-# в промпт модели. Меняй под себя через секрет/переменную TOPIC_FOCUS.
-TOPIC_FOCUS = os.environ.get("TOPIC_FOCUS", "бэкенд-разработка, Java, Go, программная архитектура и ИИ")
 HISTORY_PATH = Path(__file__).parent / "history.json"
-HISTORY_KEEP_DAYS = 30
+HISTORY_KEEP_DAYS = 90  # темы не повторяются в течение ~3 месяцев
 
-STYLE_SYSTEM_PROMPT = """Ты — циничный и остроумный редактор Telegram-канала Shtamov.dev, пишущий про бэкенд, Java, Go, архитектуру и ИИ.
-Твоя задача: взять сырой текст новости и переписать его в готовый пост для Telegram.
-ОБЯЗАТЕЛЬНЫЕ ПРАВИЛА ФОРМАТИРОВАНИЯ И СТИЛЯ:
-1. Тон: Ироничный, саркастичный, лаконичный. Используй язык, понятный суровым бэкендерам. Никакого корпоративного сленга, "воды" и восторга.
-2. Структура:
-   - Начни пост с одного медиа-эмодзи (🖼, 📹, 📎 или ⚡️).
-   - Сразу после эмодзи напиши цепляющий заголовок-суть, отделенный длинным тире (—) от основного текста.
-3. Акценты: Выделяй **жирным** шрифтом ключевые технологии, названия компаний и важные цифры.
-4. Деньги: Любые крупные суммы в долларах или евро переводи в рубли (по примерному текущему курсу) и форматируй с апострофами для читаемости (например, ₽2'700'000'000).
-5. "Добивка" (КРИТИЧЕСКИ ВАЖНО): Завершай каждый пост одной короткой строчкой с ироничным, жизненным комментарием («жизой») от лица уставшего разработчика. В конце этой строчки должен быть один подходящий эмодзи (например: 😄, ☕️, 😩, 🍔).
-6. Тег: Самая последняя строка поста всегда должна быть точно такой: @Shtamov.dev
-7. Ограничения: Выводи ТОЛЬКО итоговый текст поста. Никаких "Вот ваш текст", "Привет", объяснений или тегов форматирования markdown (кроме жирного шрифта).
-Сырой текст для обработки будет передан в следующем сообщении."""
+STYLE_SYSTEM_PROMPT = """Ты — опытный backend-разработчик и автор технического Telegram-канала.
+Твоя задача: написать экспертный, образовательный пост без "воды" на переданную пользователем тему.
+ОБЯЗАТЕЛЬНАЯ СТРУКТУРА ПОСТА:
+1. Заголовок: Начни с одного эмодзи (например: 🧠, ⚙️, 🚀, 🛠) и напиши цепляющий заголовок. Это должен быть либо конкретный вопрос (например, «Как под капотом работает ConcurrentHashMap?»), либо подборка («Топ-5 паттернов в микросервисах»). Выдели заголовок **жирным шрифтом**.
+2. Вводная часть: 1-2 коротких предложения. Строго по делу: о чем пост и в каких реальных задачах это применяется.
+3. Основная часть (Мясо): Список конкретных фактов, советов или механик работы.
+   - Каждый пункт начинай с эмодзи чекбокса (✅ или ☑️).
+   - Пиши максимально плотно: используй правильную терминологию, упоминай алгоритмы, структуры данных или особенности фреймворка.
+   - Избегай банальностей (не пиши "пишите чистый код" или "используйте ООП"). Фокус на хардах и архитектуре.
+4. Тег: Последняя строка поста ВСЕГДА должна быть: @Shtamov.dev
+ПРАВИЛА ФОРМАТИРОВАНИЯ И ОГРАНИЧЕНИЙ:
+- Тон: Профессиональный, четкий, как техническая документация, но написанная человеческим языком.
+- Выделяй **жирным** шрифтом ключевые концепции, названия классов (например, **ConcurrentHashMap**), интерфейсов или технологий.
+- Используй `обратные кавычки` для inline-кода, названий методов или переменных (например, `put()`, `O(1)`).
+- Выводи ТОЛЬКО готовый текст поста. Никаких приветствий, подтверждений или рассуждений от лица ИИ.
+Сырая тема для поста будет передана в следующем сообщении."""
 
 
 def call_llm(prompt: str, max_tokens: int, system: str | None = None) -> str:
@@ -88,11 +85,7 @@ def call_llm(prompt: str, max_tokens: int, system: str | None = None) -> str:
                 "Authorization": f"Bearer {ANTHROPIC_API_KEY}",
                 "Content-Type": "application/json",
             },
-            json={
-                "model": MODEL,
-                "max_tokens": max_tokens,
-                "messages": messages,
-            },
+            json={"model": MODEL, "max_tokens": max_tokens, "messages": messages},
             timeout=60,
         )
         if not resp.ok:
@@ -126,58 +119,11 @@ def call_llm(prompt: str, max_tokens: int, system: str | None = None) -> str:
         return data["content"][0]["text"].strip()
 
 
-# ---------- Шаг 1: сбор новостей ----------
+# ---------- Шаг 1: выбор темы ----------
 
-def collect_candidates() -> list[dict]:
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=LOOKBACK_HOURS)
-    items = []
+def _hash_topic(topic: str) -> str:
+    return hashlib.sha256(topic.strip().lower().encode("utf-8")).hexdigest()
 
-    for url in FEEDS:
-        try:
-            feed = feedparser.parse(url)
-        except Exception as e:
-            print(f"[warn] не удалось прочитать {url}: {e}")
-            continue
-
-        source_name = feed.feed.get("title", url)
-
-        for entry in feed.entries[:15]:
-            published = _entry_time(entry)
-            if published and published < cutoff:
-                continue
-
-            title = entry.get("title", "").strip()
-            link = entry.get("link", "").strip()
-            summary = (entry.get("summary") or entry.get("description") or "")[:400]
-
-            if not title or not link:
-                continue
-
-            items.append({
-                "title": title,
-                "link": link,
-                "summary": summary,
-                "source": source_name,
-                "hash": _hash_for(title, link),
-            })
-
-    print(f"Собрано кандидатов до фильтрации дублей: {len(items)}")
-    return items
-
-
-def _entry_time(entry):
-    for field in ("published_parsed", "updated_parsed"):
-        t = entry.get(field)
-        if t:
-            return datetime(*t[:6], tzinfo=timezone.utc)
-    return None
-
-
-def _hash_for(title: str, link: str) -> str:
-    return hashlib.sha256((title + link).encode("utf-8")).hexdigest()
-
-
-# ---------- Шаг 2: история публикаций ----------
 
 def load_history() -> set[str]:
     if not HISTORY_PATH.exists():
@@ -189,64 +135,40 @@ def load_history() -> set[str]:
     return {d["hash"] for d in data}
 
 
-def append_history(hash_: str, title: str):
+def append_history(topic: str):
     data = []
     if HISTORY_PATH.exists():
         data = json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
     data.append({
-        "hash": hash_,
-        "title": title,
+        "hash": _hash_topic(topic),
+        "topic": topic,
         "date": datetime.now(timezone.utc).isoformat(),
     })
     HISTORY_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-# ---------- Шаг 3: отбор новости моделью ----------
+def pick_topic(used: set[str]) -> str:
+    candidates = [t for t in TOPICS if _hash_topic(t) not in used]
+    if candidates:
+        return random.choice(candidates)
 
-def pick_story(candidates: list[dict]) -> dict | None:
-    if not candidates:
-        return None
+    # Все темы из списка уже раскрыты — просим модель придумать новую,
+    # избегая уже использованных.
+    already = "\n".join(f"- {t}" for t in TOPICS[:30])
+    prompt = f"""Придумай ОДНУ новую тему для образовательного поста про backend,
+Java, Go, программную архитектуру или ИИ/LLM-инженерию для бэкендеров.
+Тема должна быть конкретной, "хардовой", не банальной — уровень мидл/сеньор
+разработчика. Не повторяй темы из списка ниже:
+{already}
 
-    listing = "\n".join(
-        f"{i}. [{c['source']}] {c['title']}\n   {c['summary']}"
-        for i, c in enumerate(candidates)
-    )
-
-    prompt = f"""Ниже список свежих IT-новостей из разных источников (RSS).
-
-Выбери ОДНУ новость, которая ближе всего к теме: {TOPIC_FOCUS}.
-Если среди списка есть явно релевантные теме новости — выбирай только из них,
-даже если есть более "громкие" новости на другие темы.
-Если НИ ОДНОЙ подходящей по теме новости нет вообще — всё равно выбери
-максимально близкую по духу (backend/серверная разработка в целом) новость,
-и не выбирай откровенно нерелевантное (мобильная разработка, железо,
-корпоративные новости не про технологии и т.п.).
-
-Список:
-{listing}
-
-Ответь ТОЛЬКО числом — индексом выбранной новости из списка выше. Ничего больше."""
-
-    raw = call_llm(prompt, max_tokens=20)
-
-    try:
-        idx = int("".join(ch for ch in raw if ch.isdigit()))
-        return candidates[idx]
-    except (ValueError, IndexError):
-        print(f"[warn] не смог распарсить индекс из ответа модели: {raw!r}, беру первую новость")
-        return candidates[0]
+Ответь ТОЛЬКО формулировкой темы, одной строкой, без кавычек и пояснений."""
+    return call_llm(prompt, max_tokens=60)
 
 
-# ---------- Шаг 4-5: написание и само-проверка поста ----------
+# ---------- Шаг 2-3: написание и само-проверка поста ----------
 
-def write_draft(story: dict) -> str:
-    raw_text = (
-        f"Заголовок: {story['title']}\n"
-        f"Источник: {story['source']}\n"
-        f"Описание: {story['summary']}\n"
-        f"Ссылка: {story['link']}"
-    )
-    return call_llm(raw_text, max_tokens=700, system=STYLE_SYSTEM_PROMPT)
+def write_post(topic: str) -> str:
+    return call_llm(topic, max_tokens=800, system=STYLE_SYSTEM_PROMPT)
 
 
 def self_review(draft: str) -> str:
@@ -254,15 +176,29 @@ def self_review(draft: str) -> str:
 ---
 {draft}
 ---
-Сверь его со всеми правилами формата и стиля из своей системной инструкции
-(эмодзи в начале, заголовок через длинное тире, жирный шрифт на технологиях
-и цифрах, рубли с апострофами вместо долларов/евро, ироничная "добивка" с
-эмодзи в конце, тег @Shtamov.dev последней строкой). Если что-то нарушено —
+Сверь его со структурой и правилами форматирования из своей системной
+инструкции (эмодзи + жирный заголовок, короткая вводная часть, пункты
+через ✅/☑️ с плотной терминологией без банальностей, обратные кавычки для
+кода/методов, тег @Shtamov.dev последней строкой). Если что-то нарушено —
 исправь. Верни только финальный текст поста, без комментариев."""
-    return call_llm(prompt, max_tokens=700, system=STYLE_SYSTEM_PROMPT)
+    return call_llm(prompt, max_tokens=800, system=STYLE_SYSTEM_PROMPT)
 
 
-# ---------- Шаг 6: картинка ----------
+# ---------- Шаг 4: подбор картинки под смысл поста ----------
+
+def image_query_for(topic: str) -> str:
+    """Просит модель придумать короткий англоязычный поисковый запрос для
+    Unsplash, подходящий по смыслу к абстрактной технической теме — дословный
+    перевод темы почти никогда не даёт хороших результатов в фотостоке."""
+    prompt = f"""Тема технического поста: "{topic}".
+Придумай короткий (2-4 слова) поисковый запрос НА АНГЛИЙСКОМ для Unsplash,
+чтобы подобрать абстрактную, стильную обложку к этому посту. Не переводи
+термины дословно — думай об ассоциациях: серверная, код на экране,
+дата-центр, сеть, микросхемы, абстрактная технологичная картинка и т.п.
+Ответь только запросом, без кавычек и пояснений."""
+    query = call_llm(prompt, max_tokens=20)
+    return query.strip().strip('"').strip("'")
+
 
 def find_image(query: str) -> str | None:
     if not UNSPLASH_ACCESS_KEY:
@@ -279,11 +215,11 @@ def find_image(query: str) -> str | None:
         if results:
             return results[0]["urls"]["regular"]
     except Exception as e:
-        print(f"[warn] не удалось получить картинку: {e}")
+        print(f"[warn] не удалось получить картинку по запросу {query!r}: {e}")
     return None
 
 
-# ---------- Шаг 7: публикация ----------
+# ---------- Шаг 5: публикация ----------
 
 def to_telegram_markdown(text: str) -> str:
     """Telegram (legacy Markdown) понимает *жирный* одной звёздочкой,
@@ -321,11 +257,7 @@ def publish(text: str, image_url: str | None):
 
     resp = requests.post(
         f"{base}/sendMessage",
-        data={
-            "chat_id": TELEGRAM_CHAT_ID,
-            "text": text[:4096],
-            "parse_mode": "Markdown",
-        },
+        data={"chat_id": TELEGRAM_CHAT_ID, "text": text[:4096], "parse_mode": "Markdown"},
         timeout=30,
     )
     if resp.ok:
@@ -342,28 +274,23 @@ def publish(text: str, image_url: str | None):
 # ---------- Основной сценарий ----------
 
 def main():
-    candidates = collect_candidates()
-    already_posted = load_history()
-    fresh = [c for c in candidates if c["hash"] not in already_posted]
+    used = load_history()
+    topic = pick_topic(used)
+    print(f"Выбрана тема: {topic}")
 
-    print(f"Новых кандидатов после отсева дублей: {len(fresh)}")
-    if not fresh:
-        print("Нечего постить в этот раз — выхожу.")
-        return
-
-    story = pick_story(fresh)
-    print(f"Выбрана новость: {story['title']}")
-
-    draft = write_draft(story)
+    draft = write_post(topic)
     final_text = self_review(draft)
     print("---- итоговый текст ----")
     print(final_text)
     print("------------------------")
 
-    image_url = find_image(story["title"])
+    image_query = image_query_for(topic)
+    print(f"Поисковый запрос для картинки: {image_query}")
+    image_url = find_image(image_query)
+
     publish(final_text, image_url)
 
-    append_history(story["hash"], story["title"])
+    append_history(topic)
     print("Готово, опубликовано.")
 
 
