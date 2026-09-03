@@ -24,7 +24,6 @@ from pathlib import Path
 
 import feedparser
 import requests
-from anthropic import Anthropic
 
 from feeds import FEEDS
 
@@ -36,17 +35,68 @@ TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "")
 
 MODEL = os.environ.get("CLAUDE_MODEL") or "claude-sonnet-5"
-# Если используешь не официальный ключ Anthropic, а стороннего реселлера/прокси
-# (например с console.anthropic.com у тебя другой адрес) — укажи его тут через
-# секрет ANTHROPIC_BASE_URL. Если переменная не задана, используется обычный
-# официальный адрес Anthropic API.
-ANTHROPIC_BASE_URL = os.environ.get("ANTHROPIC_BASE_URL") or None
+# Если используешь ключ от стороннего реселлера/прокси (не напрямую с
+# console.anthropic.com) — укажи его адрес через секрет ANTHROPIC_BASE_URL,
+# например https://api.apibazaar.shop/v1. Такие прокси обычно эмулируют
+# OpenAI-совместимый Chat Completions API, а не нативный Anthropic API,
+# поэтому запрос собирается вручную (см. call_llm ниже), а не через
+# официальный anthropic SDK — SDK и такой прокси говорят на разных "языках".
+# Если переменная не задана — используется официальный Anthropic API напрямую.
+ANTHROPIC_BASE_URL = (os.environ.get("ANTHROPIC_BASE_URL") or "https://api.anthropic.com").rstrip("/")
+USING_PROXY = bool(os.environ.get("ANTHROPIC_BASE_URL"))
+
 LOOKBACK_HOURS = int(os.environ.get("LOOKBACK_HOURS", "26"))
 POST_LANGUAGE = os.environ.get("POST_LANGUAGE", "ru")  # ru или en
 HISTORY_PATH = Path(__file__).parent / "history.json"
 HISTORY_KEEP_DAYS = 30
 
-client = Anthropic(api_key=ANTHROPIC_API_KEY, base_url=ANTHROPIC_BASE_URL)
+
+def call_llm(prompt: str, max_tokens: int) -> str:
+    """Отправляет один prompt модели и возвращает текст ответа.
+
+    Поддерживает два режима:
+    - официальный Anthropic API (/v1/messages, заголовок x-api-key)
+    - OpenAI-совместимый прокси реселлера (/chat/completions, Bearer-токен)
+    """
+    if USING_PROXY:
+        resp = requests.post(
+            f"{ANTHROPIC_BASE_URL}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {ANTHROPIC_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": MODEL,
+                "max_tokens": max_tokens,
+                "messages": [{"role": "user", "content": prompt}],
+            },
+            timeout=60,
+        )
+        if not resp.ok:
+            print(f"[error] LLM-прокси ответил {resp.status_code}: {resp.text[:500]}")
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"].strip()
+    else:
+        resp = requests.post(
+            f"{ANTHROPIC_BASE_URL}/v1/messages",
+            headers={
+                "x-api-key": ANTHROPIC_API_KEY,
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": MODEL,
+                "max_tokens": max_tokens,
+                "messages": [{"role": "user", "content": prompt}],
+            },
+            timeout=60,
+        )
+        if not resp.ok:
+            print(f"[error] Anthropic API ответил {resp.status_code}: {resp.text[:500]}")
+        resp.raise_for_status()
+        data = resp.json()
+        return data["content"][0]["text"].strip()
 
 
 # ---------- Шаг 1: сбор новостей ----------
@@ -145,12 +195,7 @@ def pick_story(candidates: list[dict]) -> dict | None:
 
 Ответь ТОЛЬКО числом — индексом выбранной новости из списка выше. Ничего больше."""
 
-    resp = client.messages.create(
-        model=MODEL,
-        max_tokens=20,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    raw = resp.content[0].text.strip()
+    raw = call_llm(prompt, max_tokens=20)
 
     try:
         idx = int("".join(ch for ch in raw if ch.isdigit()))
@@ -179,12 +224,7 @@ def write_draft(story: dict) -> str:
 - в конце — ссылка на источник отдельной строкой
 - без markdown-заголовков"""
 
-    resp = client.messages.create(
-        model=MODEL,
-        max_tokens=500,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return resp.content[0].text.strip()
+    return call_llm(prompt, max_tokens=500)
 
 
 def self_review(draft: str) -> str:
@@ -201,12 +241,7 @@ def self_review(draft: str) -> str:
 разбирается в теме и просто делится интересным. Сохрани фактическую точность
 и ссылку в конце. Верни только финальный текст поста, без комментариев."""
 
-    resp = client.messages.create(
-        model=MODEL,
-        max_tokens=500,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return resp.content[0].text.strip()
+    return call_llm(prompt, max_tokens=500)
 
 
 # ---------- Шаг 6: картинка ----------
