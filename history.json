@@ -13,5 +13,10 @@
     "hash": "7f3840158c281d685c466bb9c329115f04da85d5730363c75ca0c18cba66514c",
     "title": "Presentation: Instrumentation at Scale: Having Your Performance Cake and Eating It Too",
     "date": "2026-09-03T17:10:46.435955+00:00"
+  },
+  {
+    "hash": "8cc065be9125dbe7d1cdedc60f7ad0ad764ffc7be648d602bbf56c778738d90c",
+    "topic": "Что такое токенизация и почему LLM «не умеют считать буквы»",
+    "date": "2026-09-03T17:25:01.687935+00:00"
   }
 ]
