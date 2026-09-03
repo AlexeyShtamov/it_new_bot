@@ -35,13 +35,18 @@ TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "")
 
-MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-5")
+MODEL = os.environ.get("CLAUDE_MODEL") or "claude-sonnet-5"
+# Если используешь не официальный ключ Anthropic, а стороннего реселлера/прокси
+# (например с console.anthropic.com у тебя другой адрес) — укажи его тут через
+# секрет ANTHROPIC_BASE_URL. Если переменная не задана, используется обычный
+# официальный адрес Anthropic API.
+ANTHROPIC_BASE_URL = os.environ.get("ANTHROPIC_BASE_URL") or None
 LOOKBACK_HOURS = int(os.environ.get("LOOKBACK_HOURS", "26"))
 POST_LANGUAGE = os.environ.get("POST_LANGUAGE", "ru")  # ru или en
 HISTORY_PATH = Path(__file__).parent / "history.json"
 HISTORY_KEEP_DAYS = 30
 
-client = Anthropic(api_key=ANTHROPIC_API_KEY)
+client = Anthropic(api_key=ANTHROPIC_API_KEY, base_url=ANTHROPIC_BASE_URL)
 
 
 # ---------- Шаг 1: сбор новостей ----------
