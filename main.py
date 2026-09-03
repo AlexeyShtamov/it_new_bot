@@ -47,18 +47,41 @@ USING_PROXY = bool(os.environ.get("ANTHROPIC_BASE_URL"))
 
 LOOKBACK_HOURS = int(os.environ.get("LOOKBACK_HOURS", "26"))
 POST_LANGUAGE = os.environ.get("POST_LANGUAGE", "ru")  # ru или en
+# Тематический фильтр для отбора новости — свободный текст, который вставляется
+# в промпт модели. Меняй под себя через секрет/переменную TOPIC_FOCUS.
+TOPIC_FOCUS = os.environ.get("TOPIC_FOCUS", "бэкенд-разработка, Java, Go, программная архитектура и ИИ")
 HISTORY_PATH = Path(__file__).parent / "history.json"
 HISTORY_KEEP_DAYS = 30
 
+STYLE_SYSTEM_PROMPT = """Ты — циничный и остроумный редактор Telegram-канала Shtamov.dev, пишущий про бэкенд, Java, Go, архитектуру и ИИ.
+Твоя задача: взять сырой текст новости и переписать его в готовый пост для Telegram.
+ОБЯЗАТЕЛЬНЫЕ ПРАВИЛА ФОРМАТИРОВАНИЯ И СТИЛЯ:
+1. Тон: Ироничный, саркастичный, лаконичный. Используй язык, понятный суровым бэкендерам. Никакого корпоративного сленга, "воды" и восторга.
+2. Структура:
+   - Начни пост с одного медиа-эмодзи (🖼, 📹, 📎 или ⚡️).
+   - Сразу после эмодзи напиши цепляющий заголовок-суть, отделенный длинным тире (—) от основного текста.
+3. Акценты: Выделяй **жирным** шрифтом ключевые технологии, названия компаний и важные цифры.
+4. Деньги: Любые крупные суммы в долларах или евро переводи в рубли (по примерному текущему курсу) и форматируй с апострофами для читаемости (например, ₽2'700'000'000).
+5. "Добивка" (КРИТИЧЕСКИ ВАЖНО): Завершай каждый пост одной короткой строчкой с ироничным, жизненным комментарием («жизой») от лица уставшего разработчика. В конце этой строчки должен быть один подходящий эмодзи (например: 😄, ☕️, 😩, 🍔).
+6. Тег: Самая последняя строка поста всегда должна быть точно такой: @Shtamov.dev
+7. Ограничения: Выводи ТОЛЬКО итоговый текст поста. Никаких "Вот ваш текст", "Привет", объяснений или тегов форматирования markdown (кроме жирного шрифта).
+Сырой текст для обработки будет передан в следующем сообщении."""
 
-def call_llm(prompt: str, max_tokens: int) -> str:
-    """Отправляет один prompt модели и возвращает текст ответа.
+
+def call_llm(prompt: str, max_tokens: int, system: str | None = None) -> str:
+    """Отправляет один prompt модели (опционально с system-инструкцией) и
+    возвращает текст ответа.
 
     Поддерживает два режима:
     - официальный Anthropic API (/v1/messages, заголовок x-api-key)
     - OpenAI-совместимый прокси реселлера (/chat/completions, Bearer-токен)
     """
     if USING_PROXY:
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+
         resp = requests.post(
             f"{ANTHROPIC_BASE_URL}/chat/completions",
             headers={
@@ -68,7 +91,7 @@ def call_llm(prompt: str, max_tokens: int) -> str:
             json={
                 "model": MODEL,
                 "max_tokens": max_tokens,
-                "messages": [{"role": "user", "content": prompt}],
+                "messages": messages,
             },
             timeout=60,
         )
@@ -78,6 +101,14 @@ def call_llm(prompt: str, max_tokens: int) -> str:
         data = resp.json()
         return data["choices"][0]["message"]["content"].strip()
     else:
+        payload = {
+            "model": MODEL,
+            "max_tokens": max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if system:
+            payload["system"] = system
+
         resp = requests.post(
             f"{ANTHROPIC_BASE_URL}/v1/messages",
             headers={
@@ -85,11 +116,7 @@ def call_llm(prompt: str, max_tokens: int) -> str:
                 "anthropic-version": "2023-06-01",
                 "Content-Type": "application/json",
             },
-            json={
-                "model": MODEL,
-                "max_tokens": max_tokens,
-                "messages": [{"role": "user", "content": prompt}],
-            },
+            json=payload,
             timeout=60,
         )
         if not resp.ok:
@@ -186,9 +213,14 @@ def pick_story(candidates: list[dict]) -> dict | None:
     )
 
     prompt = f"""Ниже список свежих IT-новостей из разных источников (RSS).
-Выбери ОДНУ самую значимую и интересную для широкой IT-аудитории новость:
-важные релизы, значимые технологические события, важные инструменты/фреймворки,
-крупные изменения в индустрии. Игнорируй мелкие личные блог-посты и рекламу.
+
+Выбери ОДНУ новость, которая ближе всего к теме: {TOPIC_FOCUS}.
+Если среди списка есть явно релевантные теме новости — выбирай только из них,
+даже если есть более "громкие" новости на другие темы.
+Если НИ ОДНОЙ подходящей по теме новости нет вообще — всё равно выбери
+максимально близкую по духу (backend/серверная разработка в целом) новость,
+и не выбирай откровенно нерелевантное (мобильная разработка, железо,
+корпоративные новости не про технологии и т.п.).
 
 Список:
 {listing}
@@ -208,40 +240,26 @@ def pick_story(candidates: list[dict]) -> dict | None:
 # ---------- Шаг 4-5: написание и само-проверка поста ----------
 
 def write_draft(story: dict) -> str:
-    lang_note = "на русском языке" if POST_LANGUAGE == "ru" else "in English"
-
-    prompt = f"""Напиши короткий пост для Telegram-канала об IT-новостях, {lang_note}.
-
-Новость: {story['title']}
-Источник: {story['source']}
-Описание: {story['summary']}
-Ссылка: {story['link']}
-
-Требования:
-- 3-6 предложений по делу, без вступлений в духе "сегодня хочу рассказать"
-- живой, разговорный тон, как будто пишет человек, а не пресс-релиз
-- никаких хэштегов и call-to-action в духе "подписывайся"
-- в конце — ссылка на источник отдельной строкой
-- без markdown-заголовков"""
-
-    return call_llm(prompt, max_tokens=500)
+    raw_text = (
+        f"Заголовок: {story['title']}\n"
+        f"Источник: {story['source']}\n"
+        f"Описание: {story['summary']}\n"
+        f"Ссылка: {story['link']}"
+    )
+    return call_llm(raw_text, max_tokens=700, system=STYLE_SYSTEM_PROMPT)
 
 
 def self_review(draft: str) -> str:
-    prompt = f"""Вот черновик поста для Telegram-канала:
-
+    prompt = f"""Вот черновик поста:
 ---
 {draft}
 ---
-
-Перепиши его, убрав всё, что выдаёт "нейро-слоп": канцелярит, шаблонные фразы
-("в мире технологий", "стоит отметить", "это важный шаг вперёд"), избыточные
-превосходные степени, искусственный энтузиазм, повторы структуры "не просто X, а Y".
-Сделай текст короче и живее, как будто его написал человек, который реально
-разбирается в теме и просто делится интересным. Сохрани фактическую точность
-и ссылку в конце. Верни только финальный текст поста, без комментариев."""
-
-    return call_llm(prompt, max_tokens=500)
+Сверь его со всеми правилами формата и стиля из своей системной инструкции
+(эмодзи в начале, заголовок через длинное тире, жирный шрифт на технологиях
+и цифрах, рубли с апострофами вместо долларов/евро, ироничная "добивка" с
+эмодзи в конце, тег @Shtamov.dev последней строкой). Если что-то нарушено —
+исправь. Верни только финальный текст поста, без комментариев."""
+    return call_llm(prompt, max_tokens=700, system=STYLE_SYSTEM_PROMPT)
 
 
 # ---------- Шаг 6: картинка ----------
@@ -267,11 +285,31 @@ def find_image(query: str) -> str | None:
 
 # ---------- Шаг 7: публикация ----------
 
+def to_telegram_markdown(text: str) -> str:
+    """Telegram (legacy Markdown) понимает *жирный* одной звёздочкой,
+    а модель по привычке пишет **жирный** двумя — конвертируем."""
+    return text.replace("**", "*")
+
+
 def publish(text: str, image_url: str | None):
     base = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
+    text = to_telegram_markdown(text)
 
     if image_url:
         caption = text[:1024]  # лимит Telegram на подпись к фото
+        resp = requests.post(
+            f"{base}/sendPhoto",
+            data={
+                "chat_id": TELEGRAM_CHAT_ID,
+                "photo": image_url,
+                "caption": caption,
+                "parse_mode": "Markdown",
+            },
+            timeout=30,
+        )
+        if resp.ok:
+            return
+        print(f"[warn] sendPhoto с разметкой не сработал ({resp.text}), пробую без разметки")
         resp = requests.post(
             f"{base}/sendPhoto",
             data={"chat_id": TELEGRAM_CHAT_ID, "photo": image_url, "caption": caption},
@@ -279,8 +317,20 @@ def publish(text: str, image_url: str | None):
         )
         if resp.ok:
             return
-        print(f"[warn] sendPhoto не сработал ({resp.text}), пробую просто текст")
+        print(f"[warn] sendPhoto всё равно не сработал ({resp.text}), пробую просто текст")
 
+    resp = requests.post(
+        f"{base}/sendMessage",
+        data={
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": text[:4096],
+            "parse_mode": "Markdown",
+        },
+        timeout=30,
+    )
+    if resp.ok:
+        return
+    print(f"[warn] sendMessage с разметкой не сработал ({resp.text}), пробую без разметки")
     resp = requests.post(
         f"{base}/sendMessage",
         data={"chat_id": TELEGRAM_CHAT_ID, "text": text[:4096]},
