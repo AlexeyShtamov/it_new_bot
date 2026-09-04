@@ -28,5 +28,10 @@
     "hash": "432ceb4a7fd9b068ccdc6c3e6fafb48d71d61cbfc1dd65fe6511907f4d226ff3",
     "topic": "Saga pattern: как управлять распределёнными транзакциями без 2PC",
     "date": "2026-09-03T17:33:56.658694+00:00"
+  },
+  {
+    "hash": "f20bd3eb25784dd3fcee61b0ae5a48fd1210ece6210b6792207e4ce4dbf676a7",
+    "topic": "Rate limiting: алгоритмы token bucket, leaky bucket, sliding window",
+    "date": "2026-09-04T13:24:25.609087+00:00"
   }
 ]
