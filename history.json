@@ -33,5 +33,10 @@
     "hash": "f20bd3eb25784dd3fcee61b0ae5a48fd1210ece6210b6792207e4ce4dbf676a7",
     "topic": "Rate limiting: алгоритмы token bucket, leaky bucket, sliding window",
     "date": "2026-09-04T13:24:25.609087+00:00"
+  },
+  {
+    "hash": "d0c3ee03aa1fcf026680e3d7a5d088b3b5e6bc16ab45a97d822b42def7614b54",
+    "topic": "Как устроен HashMap изнутри: хэширование, коллизии, treeify",
+    "date": "2026-09-05T12:34:25.882784+00:00"
   }
 ]
