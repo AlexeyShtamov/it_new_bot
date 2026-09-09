@@ -53,5 +53,10 @@
     "hash": "2583b74b77e881f759c68be0e360b0c20e554cdf02cf4adfafbaff357bdf3041",
     "topic": "Как работает classloading в JVM",
     "date": "2026-09-08T13:28:59.207908+00:00"
+  },
+  {
+    "hash": "3b4aa9dfca35d6d3dc819dfac985d7438d8785e047b6a45c0af60f3716aad046",
+    "topic": "Spring: как на самом деле работает Dependency Injection под капотом",
+    "date": "2026-09-09T13:38:59.779892+00:00"
   }
 ]
