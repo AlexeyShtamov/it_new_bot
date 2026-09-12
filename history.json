@@ -68,5 +68,10 @@
     "hash": "9fc2b6342c3a284fcd5b8ec71d482e4cfeb5fc7b8add25816fa2e81d0e81eba2",
     "topic": "Function calling у LLM: как это реально работает под капотом",
     "date": "2026-09-11T13:28:18.399063+00:00"
+  },
+  {
+    "hash": "f71932d4c78ccdae8ee6420793eb8bc2fcf2d718e146dbbf3d13222c4fd59af5",
+    "topic": "Индексы в PostgreSQL: B-tree, GIN, GiST — когда что использовать",
+    "date": "2026-09-12T12:48:15.755968+00:00"
   }
 ]
