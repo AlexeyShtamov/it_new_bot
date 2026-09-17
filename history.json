@@ -93,5 +93,10 @@
     "hash": "bf996d303723bd3b4df4019c2113c1873f45e788f7148250508d4509ec05e783",
     "topic": "Как устроен RAG (Retrieval-Augmented Generation) на практике",
     "date": "2026-09-16T14:09:38.757747+00:00"
+  },
+  {
+    "hash": "192f253a91414c5b70cab3a31ca16de9f5918ab305c9b62ce8c39d4b4beca65e",
+    "topic": "Channels vs Mutex: когда что использовать в Go",
+    "date": "2026-09-17T14:14:38.009033+00:00"
   }
 ]
