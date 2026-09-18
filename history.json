@@ -98,5 +98,10 @@
     "hash": "192f253a91414c5b70cab3a31ca16de9f5918ab305c9b62ce8c39d4b4beca65e",
     "topic": "Channels vs Mutex: когда что использовать в Go",
     "date": "2026-09-17T14:14:38.009033+00:00"
+  },
+  {
+    "hash": "2cc57a9a389877bd51227db8c7e27bcc4dcba01e00cc9eff436b8c697f09a51f",
+    "topic": "Как работает очередь сообщений изнутри: Kafka vs RabbitMQ",
+    "date": "2026-09-18T13:33:02.004245+00:00"
   }
 ]
