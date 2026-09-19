@@ -103,5 +103,10 @@
     "hash": "2cc57a9a389877bd51227db8c7e27bcc4dcba01e00cc9eff436b8c697f09a51f",
     "topic": "Как работает очередь сообщений изнутри: Kafka vs RabbitMQ",
     "date": "2026-09-18T13:33:02.004245+00:00"
+  },
+  {
+    "hash": "af3ff7cc7f01e32f805764b89d6c199f74bc4b8bc3bf3ad9c0477d875dc4ece9",
+    "topic": "Как читать план запроса (EXPLAIN ANALYZE) в PostgreSQL",
+    "date": "2026-09-19T13:02:27.522999+00:00"
   }
 ]
