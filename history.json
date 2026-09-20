@@ -108,5 +108,10 @@
     "hash": "af3ff7cc7f01e32f805764b89d6c199f74bc4b8bc3bf3ad9c0477d875dc4ece9",
     "topic": "Как читать план запроса (EXPLAIN ANALYZE) в PostgreSQL",
     "date": "2026-09-19T13:02:27.522999+00:00"
+  },
+  {
+    "hash": "2f9c2749fb35de788d39736e06505a6a0af00f9742111dcd858b1bc601be307b",
+    "topic": "Outbox pattern: как гарантировать доставку событий между сервисами",
+    "date": "2026-09-20T13:33:01.814461+00:00"
   }
 ]
