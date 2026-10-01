@@ -158,5 +158,10 @@
     "hash": "6321047f2ead03291243e94654073232b84d2d968cf2d8485bd3e8e881e12379",
     "topic": "Garbage Collector: как выбрать между G1, ZGC и Shenandoah",
     "date": "2026-09-30T15:49:31.162033+00:00"
+  },
+  {
+    "hash": "a5cc312f43f13eaffa3280fa6c2913f6c43197c02cae59dba931021c7599c71b",
+    "topic": "Как под капотом работает ConcurrentHashMap",
+    "date": "2026-10-01T16:15:54.924962+00:00"
   }
 ]
