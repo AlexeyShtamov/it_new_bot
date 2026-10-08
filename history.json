@@ -193,5 +193,10 @@
     "hash": "3076102a6800120d3850cbedb03321d5f990fcc8d084a46aa009fc1633c9b052",
     "topic": "Как работает memory ordering и happens-before отношения в Java: почему volatile недостаточно и когда нужны явные барьеры памяти",
     "date": "2026-10-07T16:18:25.931650+00:00"
+  },
+  {
+    "hash": "6f2eae93fb0b19cf6bc6d4802e86f50844c720aa81f49f9df0924b772c45e706",
+    "topic": "Как работает batch normalization в inference-time оптимизации LLM и почему это критично для латенси в production",
+    "date": "2026-10-08T16:20:57.626876+00:00"
   }
 ]
