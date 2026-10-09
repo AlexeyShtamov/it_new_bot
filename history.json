@@ -198,5 +198,10 @@
     "hash": "6f2eae93fb0b19cf6bc6d4802e86f50844c720aa81f49f9df0924b772c45e706",
     "topic": "Как работает batch normalization в inference-time оптимизации LLM и почему это критично для латенси в production",
     "date": "2026-10-08T16:20:57.626876+00:00"
+  },
+  {
+    "hash": "5834aa932141fc9c42630e4f36592142f63d8e5a49c1e855317b778cb13bf038",
+    "topic": "Memory-mapped files и как их правильно использовать для high-performance обработки больших объёмов данных в Java и Go",
+    "date": "2026-10-09T16:04:28.576749+00:00"
   }
 ]
