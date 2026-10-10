@@ -203,5 +203,10 @@
     "hash": "5834aa932141fc9c42630e4f36592142f63d8e5a49c1e855317b778cb13bf038",
     "topic": "Memory-mapped files и как их правильно использовать для high-performance обработки больших объёмов данных в Java и Go",
     "date": "2026-10-09T16:04:28.576749+00:00"
+  },
+  {
+    "hash": "5a4d5d1c029347359f8df9d90c64b47a9295617f32bdef564d5f6dedebf31202",
+    "topic": "Как работает adaptive timeout в распределённых системах: от exponential backoff к predictive backoff на основе latency percentiles.",
+    "date": "2026-10-10T15:13:18.056556+00:00"
   }
 ]
