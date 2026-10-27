@@ -263,5 +263,10 @@
     "hash": "eaef28fe6f708a227980f97f6171f60c42c3613bf8a9638e820eacc274401b8c",
     "topic": "Как работает memory ordering в многопоточной Java: happens-before, volatile и невидимые баги синхронизации",
     "date": "2026-10-26T16:03:33.948044+00:00"
+  },
+  {
+    "hash": "e6ab93428a57566346db72d04daf9e1c5d8b2aead82a6acee86484845438e562",
+    "topic": "Как работает memory ordering в многопоточных системах: memory barriers, happens-before relations и их влияние на performance в Java и Go",
+    "date": "2026-10-27T15:16:52.748610+00:00"
   }
 ]
