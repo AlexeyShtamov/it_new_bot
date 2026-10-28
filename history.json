@@ -268,5 +268,10 @@
     "hash": "e6ab93428a57566346db72d04daf9e1c5d8b2aead82a6acee86484845438e562",
     "topic": "Как работает memory ordering в многопоточных системах: memory barriers, happens-before relations и их влияние на performance в Java и Go",
     "date": "2026-10-27T15:16:52.748610+00:00"
+  },
+  {
+    "hash": "b1759e6db842b381640a3d44b829c94c7c85c2aedd249aa617e5c1d53c006758",
+    "topic": "Как работает adaptive lock biasing в HotSpot JVM и почему синхронизация в Java может быть почти бесплатной",
+    "date": "2026-10-28T15:54:07.146926+00:00"
   }
 ]
