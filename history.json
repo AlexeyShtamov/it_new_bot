@@ -273,5 +273,10 @@
     "hash": "b1759e6db842b381640a3d44b829c94c7c85c2aedd249aa617e5c1d53c006758",
     "topic": "Как работает adaptive lock biasing в HotSpot JVM и почему синхронизация в Java может быть почти бесплатной",
     "date": "2026-10-28T15:54:07.146926+00:00"
+  },
+  {
+    "hash": "21c1fcfa1b0ebc9d9eadb47277f3368581f1ba9c635a0c9e65e158f53b899583",
+    "topic": "Как работает adaptive padding в Go runtime и почему это критично для false sharing в многопоточных приложениях",
+    "date": "2026-10-29T15:59:31.602957+00:00"
   }
 ]
