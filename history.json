@@ -278,5 +278,10 @@
     "hash": "21c1fcfa1b0ebc9d9eadb47277f3368581f1ba9c635a0c9e65e158f53b899583",
     "topic": "Как работает adaptive padding в Go runtime и почему это критично для false sharing в многопоточных приложениях",
     "date": "2026-10-29T15:59:31.602957+00:00"
+  },
+  {
+    "hash": "bfa3ba4bda52c4d24ea05e007ed36ea1b8b8aab10f3566c5d8427ac1371ea961",
+    "topic": "Как работает memory ordering в многопоточных системах: Acquire-Release семантика, Memory Barriers и почему volatile недостаточно",
+    "date": "2026-10-30T15:46:52.072292+00:00"
   }
 ]
